@@ -1,0 +1,41 @@
+name: Bitcoin Testnet Node
+
+on: [push, pull_request]
+
+jobs:
+  run-bitcoin-node:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Cache Docker layers
+      uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+    - name: Run Bitcoin Core in testnet mode
+      run: |
+        docker run -d --name bitcoind-testnet \
+          -v bitcoin_data:/bitcoin/.bitcoin \
+          ruimarinho/bitcoin-core:latest \
+          -testnet -printtoconsole -server=1 -rpcallowip=::/0 -rpcbind=0.0.0.0 -rpcuser=user -rpcpassword=password
+
+    - name: Wait for Bitcoin Core to be ready
+      run: |
+        sleep 120
+        docker logs bitcoind-testnet
+
+    - name: Run bitcoin-cli commands
+      run: |
+        docker exec bitcoind-testnet bitcoin-cli -testnet -rpcuser=user -rpcpassword=password getblockchaininfo
+git add .github/workflows/bitcoin-testnet.yml
+git commit -m "Add GitHub Actions workflow to run Bitcoin Core in testnet mode"
+git push origin main
